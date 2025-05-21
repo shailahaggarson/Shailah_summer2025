@@ -1,0 +1,29 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.4.0/p5.min.js"></script>
+  <style>body { margin: 0; }</style>
+</head>
+<body>
+  <script>
+    var Module = {
+      locateFile: function(path) {
+        return path; // Let the browser find compute.wasm in same directory
+      }
+    };
+  </script>
+  <script>
+    var Module = {
+      print: (text) => console.log('[stdout]', text),
+      printErr: (text) => console.error('[stderr]', text),
+      onRuntimeInitialized: () => console.log("WASM fully initialized!"),
+      locateFile: (path) => {
+        console.log("Loading:", path); 
+        return path;
+      }
+    };
+  </script>
+  <script src="compute.js"></script>
+  <script src="sketch.js"></script>
+</body>
+</html>
