@@ -16,7 +16,7 @@ const sketch = (p) => {
     p.background(220);
     if (addFunction) {
       const result = addFunction(10, 20);
-      p.text(`10 + 20 = ${result}`, 50, 100);
+      p.text(`10 + 21 = ${result}`, 50, 100);
     } else {
       p.text("Loading WASM...", 50, 100);
     }
