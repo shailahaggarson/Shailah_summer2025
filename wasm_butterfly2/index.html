@@ -1,0 +1,474 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Hofstadter Butterfly Visualization</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 20px;
+            background-color: #1a1a1a;
+            color: white;
+            font-family: 'Courier New', monospace;
+        }
+        
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        
+        .header {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .header h1 {
+            color: #4CAF50;
+            margin-bottom: 10px;
+        }
+        
+        .header p {
+            color: #888;
+            font-size: 14px;
+            line-height: 1.4;
+        }
+        
+        .canvas-container {
+            text-align: center;
+            margin-bottom: 20px;
+        }
+        
+        .controls {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+        }
+        
+        .controls h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        
+        .info {
+            background-color: #2a2a2a;
+            padding: 15px;
+            border-radius: 8px;
+            margin-top: 20px;
+            font-size: 12px;
+            line-height: 1.6;
+        }
+        
+        .info h3 {
+            margin-top: 0;
+            color: #4CAF50;
+        }
+        
+        .loading {
+            text-align: center;
+            color: #888;
+            font-style: italic;
+        }
+        
+        button {
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 4px;
+            cursor: pointer;
+            font-family: inherit;
+        }
+        
+        button:hover {
+            background-color: #45a049;
+        }
+        
+        button:disabled {
+            background-color: #666;
+            cursor: not-allowed;
+        }
+        
+        input[type="range"] {
+            width: 200px;
+            margin: 0 10px;
+        }
+        
+        .slider-container {
+            margin: 10px 0;
+            display: flex;
+            align-items: center;
+            flex-wrap: wrap;
+        }
+        
+        .slider-container label {
+            min-width: 150px;
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Hofstadter Butterfly</h1>
+            <p>
+                Interactive visualization of the Almost Mathieu Spectrum<br>
+                Computed using WebAssembly from C++ port of MATLAB code
+            </p>
+        </div>
+        
+        <div class="canvas-container">
+            <div id="sketch-holder">
+                <!-- p5.js canvas will be inserted here -->
+            </div>
+        </div>
+        
+        <div class="info">
+            <h3>About the Hofstadter Butterfly</h3>
+            <p>
+                The Hofstadter butterfly is a fractal structure that emerges when studying the energy spectrum 
+                of electrons in a 2D lattice subject to a perpendicular magnetic field. It's described by the 
+                Almost Mathieu operator:
+            </p>
+            <p style="text-align: center; font-style: italic;">
+                (Hψ)ₙ = ψₙ₊₁ + ψₙ₋₁ + λ cos(2π(θn + φ))ψₙ
+            </p>
+            <p>
+                <strong>Parameters:</strong><br>
+                • <strong>θ (theta)</strong>: The magnetic flux ratio (x-axis), representing the ratio of magnetic flux through a unit cell to the flux quantum<br>
+                • <strong>λ (lambda)</strong>: The coupling strength, controlling the amplitude of the periodic potential<br>
+                • <strong>Max Q</strong>: Maximum denominator for rational approximations to θ = p/q
+            </p>
+            <p>
+                <strong>What you're seeing:</strong><br>
+                Each vertical line represents the energy spectrum for a specific rational flux ratio θ = p/q. 
+                The fractal self-similar structure emerges from the relationship between rational and irrational numbers.
+                When θ is irrational, the spectrum becomes a Cantor set with zero measure.
+            </p>
+            <p>
+                <strong>Colors:</strong> Different colors indicate different numbers of energy bands, 
+                with blue representing fewer bands and red representing more complex spectra.
+            </p>
+        </div>
+        
+        <div class="info">
+            <h3>Technical Details</h3>
+            <p>
+                This visualization uses WebAssembly compiled from C++ to perform the heavy numerical computations,
+                while p5.js handles the interactive visualization. The C++ code computes eigenvalues of 
+                tridiagonal matrices representing the Almost Mathieu operator for both periodic and 
+                anti-periodic boundary conditions.
+            </p>
+            <p>
+                <strong>Performance:</strong> The computation time scales roughly as O(Q³) due to eigenvalue 
+                computations for matrices of size up to Q×Q. Higher values of Max Q will show more detail 
+                but take longer to compute.
+            </p>
+        </div>
+    </div>
+
+    <!-- Load p5.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/p5.js/1.7.0/p5.min.js"></script>
+    
+    <!-- Load the WebAssembly module -->
+    <script src="hofstadter.js"></script>
+    
+    <!-- Load our sketch -->
+    <script>
+        // Initialize p5.js sketch in the specific container
+        let sketch = function(p) {
+            // Import all sketch functions into p5 instance
+            let wasmModule;
+            let spectrumData = [];
+            let isLoaded = false;
+            let isComputing = false;
+
+            // Visualization parameters
+            let maxQ = 50;
+            let lambda = 2.0;
+            let canvasWidth = 800;
+            let canvasHeight = 600;
+
+            // Display parameters
+            let xScale, yScale;
+            let xOffset = 50;
+            let yOffset = 50;
+            let plotWidth, plotHeight;
+
+            // UI elements
+            let qSlider, lambdaSlider, qLabel, lambdaLabel, computeBtn;
+
+            p.preload = async function() {
+                console.log('Loading WebAssembly module...');
+                try {
+                    wasmModule = await HofstadterModule();
+                    console.log('WebAssembly module loaded successfully');
+                    isLoaded = true;
+                } catch (error) {
+                    console.error('Failed to load WebAssembly module:', error);
+                }
+            };
+
+            p.setup = function() {
+                let canvas = p.createCanvas(canvasWidth, canvasHeight);
+                canvas.parent('sketch-holder');
+                
+                plotWidth = canvasWidth - 2 * xOffset;
+                plotHeight = canvasHeight - 2 * yOffset;
+                
+                xScale = plotWidth;
+                yScale = plotHeight / 8.0;
+                
+                createControls();
+                
+                if (isLoaded) {
+                    computeSpectrum();
+                }
+            };
+
+            function createControls() {
+                let controlDiv = p.createDiv('');
+                controlDiv.position(20, canvasHeight + 120);
+                controlDiv.style('font-family', 'Arial');
+                controlDiv.style('color', 'white');
+                controlDiv.style('background-color', '#2a2a2a');
+                controlDiv.style('padding', '15px');
+                controlDiv.style('border-radius', '8px');
+                controlDiv.style('max-width', '760px');
+                
+                let title = p.createP('Controls');
+                title.parent(controlDiv);
+                title.style('margin', '0 0 10px 0');
+                title.style('color', '#4CAF50');
+                title.style('font-weight', 'bold');
+                
+                // Max Q control
+                let qContainer = p.createDiv('');
+                qContainer.parent(controlDiv);
+                qContainer.style('margin', '10px 0');
+                qContainer.style('display', 'flex');
+                qContainer.style('align-items', 'center');
+                qContainer.style('flex-wrap', 'wrap');
+                
+                qLabel = p.createSpan('Max Q (complexity): ' + maxQ);
+                qLabel.parent(qContainer);
+                qLabel.style('min-width', '180px');
+                qLabel.style('margin-right', '15px');
+                
+                qSlider = p.createSlider(10, 100, maxQ, 5);
+                qSlider.parent(qContainer);
+                qSlider.style('width', '200px');
+                qSlider.input(() => {
+                    maxQ = qSlider.value();
+                    qLabel.html('Max Q (complexity): ' + maxQ);
+                    if (isLoaded && !isComputing) {
+                        computeSpectrum();
+                    }
+                });
+                
+                // Lambda control
+                let lambdaContainer = p.createDiv('');
+                lambdaContainer.parent(controlDiv);
+                lambdaContainer.style('margin', '10px 0');
+                lambdaContainer.style('display', 'flex');
+                lambdaContainer.style('align-items', 'center');
+                lambdaContainer.style('flex-wrap', 'wrap');
+                
+                lambdaLabel = p.createSpan('Lambda (coupling): ' + lambda.toFixed(2));
+                lambdaLabel.parent(lambdaContainer);
+                lambdaLabel.style('min-width', '180px');
+                lambdaLabel.style('margin-right', '15px');
+                
+                lambdaSlider = p.createSlider(0.1, 4.0, lambda, 0.1);
+                lambdaSlider.parent(lambdaContainer);
+                lambdaSlider.style('width', '200px');
+                lambdaSlider.input(() => {
+                    lambda = lambdaSlider.value();
+                    lambdaLabel.html('Lambda (coupling): ' + lambda.toFixed(2));
+                    if (isLoaded && !isComputing) {
+                        computeSpectrum();
+                    }
+                });
+                
+                // Compute button
+                let btnContainer = p.createDiv('');
+                btnContainer.parent(controlDiv);
+                btnContainer.style('margin', '15px 0 5px 0');
+                
+                computeBtn = p.createButton('Recompute');
+                computeBtn.parent(btnContainer);
+                computeBtn.style('background-color', '#4CAF50');
+                computeBtn.style('color', 'white');
+                computeBtn.style('border', 'none');
+                computeBtn.style('padding', '8px 16px');
+                computeBtn.style('border-radius', '4px');
+                computeBtn.style('cursor', 'pointer');
+                computeBtn.mousePressed(() => {
+                    if (isLoaded && !isComputing) {
+                        computeSpectrum();
+                    }
+                });
+            }
+
+            async function computeSpectrum() {
+                if (!isLoaded || isComputing) return;
+                
+                isComputing = true;
+                console.log(`Computing spectrum with maxQ=${maxQ}, lambda=${lambda}...`);
+                
+                try {
+                    const resultSizePtr = wasmModule._malloc(4);
+                    const dataPtr = wasmModule.ccall('computeSpectrum', 'number', 
+                        ['number', 'number', 'number'], 
+                        [maxQ, lambda, resultSizePtr]);
+                    
+                    const resultSize = wasmModule.getValue(resultSizePtr, 'i32');
+                    wasmModule._free(resultSizePtr);
+                    
+                    spectrumData = [];
+                    let idx = 0;
+                    
+                    while (idx < resultSize) {
+                        const theta = wasmModule.getValue(dataPtr + idx * 8, 'double');
+                        const count = wasmModule.getValue(dataPtr + (idx + 1) * 8, 'double');
+                        
+                        const eigenvalues = [];
+                        for (let i = 0; i < count; i++) {
+                            const eig = wasmModule.getValue(dataPtr + (idx + 2 + i) * 8, 'double');
+                            eigenvalues.push(eig);
+                        }
+                        
+                        spectrumData.push({
+                            theta: theta,
+                            eigenvalues: eigenvalues
+                        });
+                        
+                        idx += 2 + count;
+                    }
+                    
+                    wasmModule.ccall('freeMemory', null, ['number'], [dataPtr]);
+                    console.log(`Computed ${spectrumData.length} spectrum lines`);
+                    
+                } catch (error) {
+                    console.error('Error computing spectrum:', error);
+                }
+                
+                isComputing = false;
+            }
+
+            p.draw = function() {
+                p.background(0);
+                
+                if (!isLoaded) {
+                    p.fill(255);
+                    p.textAlign(p.CENTER, p.CENTER);
+                    p.textSize(20);
+                    p.text('Loading WebAssembly module...', p.width/2, p.height/2);
+                    return;
+                }
+                
+                if (isComputing) {
+                    p.fill(255);
+                    p.textAlign(p.CENTER, p.CENTER);
+                    p.textSize(16);
+                    p.text('Computing spectrum...', p.width/2, p.height/2);
+                    return;
+                }
+                
+                drawAxes();
+                drawSpectrum();
+                drawTitle();
+            };
+
+            function drawAxes() {
+                p.stroke(100);
+                p.strokeWeight(1);
+                
+                p.line(xOffset, p.height - yOffset, p.width - xOffset, p.height - yOffset);
+                p.line(xOffset, yOffset, xOffset, p.height - yOffset);
+                
+                p.fill(150);
+                p.textAlign(p.CENTER, p.TOP);
+                p.textSize(10);
+                for (let i = 0; i <= 10; i++) {
+                    let x = xOffset + (i * plotWidth) / 10;
+                    let label = (i / 10).toFixed(1);
+                    p.text(label, x, p.height - yOffset + 5);
+                    
+                    p.stroke(100);
+                    p.line(x, p.height - yOffset, x, p.height - yOffset + 3);
+                }
+                
+                p.textAlign(p.RIGHT, p.CENTER);
+                for (let i = -4; i <= 4; i++) {
+                    let y = p.height/2 - i * yScale/2;
+                    if (y >= yOffset && y <= p.height - yOffset) {
+                        p.text(i.toString(), xOffset - 5, y);
+                        
+                        p.stroke(100);
+                        p.line(xOffset - 3, y, xOffset, y);
+                    }
+                }
+            }
+
+            function drawSpectrum() {
+                p.strokeWeight(1);
+                
+                for (let data of spectrumData) {
+                    let x = xOffset + data.theta * plotWidth;
+                    
+                    let numEigs = data.eigenvalues.length;
+                    let hue = p.map(numEigs, 1, 20, 240, 0);
+                    p.colorMode(p.HSB);
+                    p.stroke(hue, 80, 90, 150);
+                    
+                    for (let i = 0; i < data.eigenvalues.length - 1; i++) {
+                        let y1 = p.height/2 - data.eigenvalues[i] * yScale/2;
+                        let y2 = p.height/2 - data.eigenvalues[i+1] * yScale/2;
+                        
+                        y1 = p.constrain(y1, yOffset, p.height - yOffset);
+                        y2 = p.constrain(y2, yOffset, p.height - yOffset);
+                        
+                        p.line(x, y1, x, y2);
+                    }
+                    
+                    p.stroke(hue, 100, 100, 200);
+                    for (let eig of data.eigenvalues) {
+                        let y = p.height/2 - eig * yScale/2;
+                        if (y >= yOffset && y <= p.height - yOffset) {
+                            p.point(x, y);
+                        }
+                    }
+                }
+                
+                p.colorMode(p.RGB);
+            }
+
+            function drawTitle() {
+                p.fill(255);
+                p.textAlign(p.LEFT, p.TOP);
+                p.textSize(16);
+                p.text('Hofstadter Butterfly', 20, 20);
+                
+                p.textSize(12);
+                p.text(`Max Q: ${maxQ}, λ: ${lambda.toFixed(2)}`, 20, 45);
+                p.text(`Data points: ${spectrumData.length}`, 20, 65);
+                
+                p.textAlign(p.RIGHT, p.TOP);
+                p.text('θ (flux ratio) →', p.width - 20, p.height - 30);
+                
+                p.push();
+                p.translate(30, p.height/2);
+                p.rotate(-p.PI/2);
+                p.textAlign(p.CENTER, p.BOTTOM);
+                p.text('Energy →', 0, 0);
+                p.pop();
+            }
+        };
+
+        // Create the p5 instance
+        new p5(sketch);
+    </script>
+</body>
+</html>

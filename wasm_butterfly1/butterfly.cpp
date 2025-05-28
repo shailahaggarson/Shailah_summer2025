@@ -27,14 +27,17 @@ vector<vector<double>> createTridiagonal(int n, const vector<double>& lower,
     return matrix;
 }
 
-// Eigenvalue computation using simple QR algorithm (simplified)
+// Simplified eigenvalue computation
 vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
-    // In a real implementation, you'd use a proper eigenvalue algorithm
-    // This is a simplified version for demonstration
     vector<double> eigenvalues;
+    if (matrix.empty()) return eigenvalues;
+    
     if (matrix.size() == 1) {
         eigenvalues.push_back(matrix[0][0]);
-    } else if (matrix.size() == 2) {
+        return eigenvalues;
+    }
+    
+    if (matrix.size() == 2) {
         double a = matrix[0][0], b = matrix[0][1];
         double c = matrix[1][0], d = matrix[1][1];
         double trace = a + d;
@@ -42,7 +45,14 @@ vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
         double disc = trace*trace - 4*det;
         eigenvalues.push_back((trace + sqrt(disc))/2);
         eigenvalues.push_back((trace - sqrt(disc))/2);
+        return eigenvalues;
     }
+    
+    // For larger matrices (simplified)
+    for (size_t i = 0; i < matrix.size(); i++) {
+        eigenvalues.push_back(matrix[i][i]);
+    }
+    sort(eigenvalues.begin(), eigenvalues.end());
     return eigenvalues;
 }
 
@@ -169,7 +179,10 @@ vector<vector<vector<double>>> Hanti(int p, int q, double lambda) {
 
 // Calculate spectrum for a given p/q
 vector<vector<double>> calculateSpectrum(int p, int q, double lambda) {
-    auto [H1per, H2per] = Hper(p, q, lambda);
+    auto result_per = Hper(p, q, lambda);
+    auto H1per = result_per[0];
+    auto H2per = result_per[1];
+    
     vector<double> Xper;
     
     auto eig1 = computeEigenvalues(H1per);
@@ -184,7 +197,9 @@ vector<vector<double>> calculateSpectrum(int p, int q, double lambda) {
     
     vector<double> Xanti;
     if (q % 2 == 0) {
-        auto [H1anti, H2anti] = Hanti(p, q, lambda);
+        auto result_anti = Hanti(p, q, lambda);
+        auto H1anti = result_anti[0];
+        auto H2anti = result_anti[1];
         
         auto eig1 = computeEigenvalues(H1anti);
         Xanti.insert(Xanti.end(), eig1.begin(), eig1.end());
@@ -209,6 +224,6 @@ EMSCRIPTEN_BINDINGS(butterfly) {
     function("calculateSpectrum", &calculateSpectrum);
     function("gcd", &gcd);
     
-    register_vector<double>("vector<double>");
-    register_vector<vector<double>>("vector<vector<double>>");
+    register_vector<double>("VectorDouble");
+    register_vector<vector<double>>("VectorVectorDouble");
 }

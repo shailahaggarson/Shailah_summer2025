@@ -1,0 +1,33 @@
+{
+    "name": "hofstadter-butterfly-wasm",
+    "version": "1.0.0",
+    "description": "Interactive Hofstadter Butterfly visualization using WebAssembly and p5.js",
+    "main": "index.html",
+    "scripts": {
+      "build": "chmod +x build.sh && ./build.sh",
+      "serve": "python3 -m http.server 8080",
+      "serve-alt": "npx http-server -p 8080 -c-1",
+      "clean": "rm -f hofstadter.js hofstadter.wasm"
+    },
+    "keywords": [
+      "hofstadter",
+      "butterfly",
+      "fractal",
+      "webassembly",
+      "p5js",
+      "quantum",
+      "spectrum"
+    ],
+    "author": "Generated from MATLAB code",
+    "license": "MIT",
+    "devDependencies": {
+      "http-server": "^14.1.1"
+    },
+    "repository": {
+      "type": "git",
+      "url": "."
+    },
+    "engines": {
+      "node": ">=14.0.0"
+    }
+  }
