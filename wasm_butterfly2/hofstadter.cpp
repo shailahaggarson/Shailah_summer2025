@@ -54,40 +54,71 @@ vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
     if (n == 1) {
         return {matrix[0][0]};
     }
+    if (n == 2) {
+        // For 2x2 matrix, compute eigenvalues directly
+        double a = matrix[0][0], b = matrix[0][1];
+        double c = matrix[1][0], d = matrix[1][1];
+        double trace = a + d;
+        double det = a*d - b*c;
+        double discriminant = trace*trace - 4*det;
+        if (discriminant < 0) {
+            // Shouldn't happen for symmetric matrices
+            return {trace/2, trace/2};
+        }
+        double sqrt_disc = sqrt(discriminant);
+        return {(trace + sqrt_disc)/2, (trace - sqrt_disc)/2};
+    }
     
     // For larger matrices, we'll use a basic iterative method
-    // This is a simplified implementation - in practice you'd want a more robust solver
     vector<double> eigenvals;
-    
-    // For tridiagonal matrices, we can use a more direct approach
-    // This is a basic implementation that works for the symmetric tridiagonal case
     vector<vector<double>> A = matrix;
     
-    // Simple power iteration for dominant eigenvalue, then deflation
-    // For the butterfly, we need all eigenvalues, so we'll use a basic QR-like approach
-    
+    // Simple QR iteration (very basic implementation)
     for (int iter = 0; iter < 100; iter++) {
-        // Very basic QR step simulation
-        for (int i = 0; i < n-1; i++) {
-            for (int j = i+1; j < n; j++) {
-                if (abs(A[j][i]) > 1e-10) {
-                    double c = A[i][i] / sqrt(A[i][i]*A[i][i] + A[j][i]*A[j][i]);
-                    double s = A[j][i] / sqrt(A[i][i]*A[i][i] + A[j][i]*A[j][i]);
-                    
-                    // Apply Givens rotation
-                    for (int k = 0; k < n; k++) {
-                        double temp1 = c * A[i][k] + s * A[j][k];
-                        double temp2 = -s * A[i][k] + c * A[j][k];
-                        A[i][k] = temp1;
-                        A[j][k] = temp2;
-                    }
-                    
-                    for (int k = 0; k < n; k++) {
-                        double temp1 = c * A[k][i] + s * A[k][j];
-                        double temp2 = -s * A[k][i] + c * A[k][j];
-                        A[k][i] = temp1;
-                        A[k][j] = temp2;
-                    }
+        // QR decomposition (simplified)
+        vector<vector<double>> Q(n, vector<double>(n, 0.0));
+        vector<vector<double>> R(n, vector<double>(n, 0.0));
+        
+        // Gram-Schmidt process (simplified)
+        for (int j = 0; j < n; j++) {
+            vector<double> v = A[j];
+            for (int k = 0; k < j; k++) {
+                double dot = 0.0;
+                for (int i = 0; i < n; i++) {
+                    dot += Q[i][k] * A[j][i];
+                }
+                for (int i = 0; i < n; i++) {
+                    v[i] -= dot * Q[i][k];
+                }
+            }
+            double norm = 0.0;
+            for (int i = 0; i < n; i++) {
+                norm += v[i] * v[i];
+            }
+            norm = sqrt(norm);
+            if (norm > 1e-12) {
+                for (int i = 0; i < n; i++) {
+                    Q[i][j] = v[i] / norm;
+                }
+            }
+        }
+        
+        // Compute R = Q^T * A
+        for (int i = 0; i < n; i++) {
+            for (int j = i; j < n; j++) {
+                R[i][j] = 0.0;
+                for (int k = 0; k < n; k++) {
+                    R[i][j] += Q[k][i] * A[k][j];
+                }
+            }
+        }
+        
+        // Update A = R * Q
+        for (int i = 0; i < n; i++) {
+            for (int j = 0; j < n; j++) {
+                A[i][j] = 0.0;
+                for (int k = 0; k < n; k++) {
+                    A[i][j] += R[i][k] * Q[k][j];
                 }
             }
         }
@@ -107,10 +138,10 @@ pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
     vector<double> eigs1, eigs2;
     
     if (q == 1) {
-        eigs1 = {4.0};
+        eigs1 = {2.0 + lambda};  // Fixed from original MATLAB code
         return {eigs1, eigs2};
     } else if (q == 2) {
-        vector<vector<double>> H1 = {{-2, 2}, {2, 2}};
+        vector<vector<double>> H1 = {{-lambda, 2.0}, {2.0, lambda}};
         eigs1 = computeEigenvalues(H1);
         return {eigs1, eigs2};
     } else if (q % 2 == 0) {
@@ -189,7 +220,7 @@ pair<vector<double>, vector<double>> Hanti(int p, int q, double lambda) {
     vector<double> eigs1, eigs2;
     
     if (q == 1) {
-        eigs1 = {-4.0};
+        eigs1 = {-lambda - 2.0};  // Fixed from original MATLAB code
         return {eigs1, eigs2};
     } else if (q == 2) {
         eigs1 = {0.0};
@@ -296,9 +327,9 @@ extern "C" {
                         sort(Xanti.begin(), Xanti.end());
                     } else {
                         // Xanti = -Xper(q:-1:1) in MATLAB notation
-                        Xanti.resize(q);
-                        for (int i = 0; i < q; i++) {
-                            Xanti[i] = -Xper[q - 1 - i];
+                        Xanti.resize(Xper.size());
+                        for (size_t i = 0; i < Xper.size(); i++) {
+                            Xanti[i] = -Xper[Xper.size() - 1 - i];
                         }
                     }
                     

@@ -4,8 +4,14 @@
 #include <algorithm>
 #include <numeric>
 
-using namespace emscripten;
-using namespace std;
+// Explicitly specify which namespaces we're using
+using std::vector;
+using std::cos;
+using std::sort;
+using std::fmod;
+using std::sqrt;
+using std::pow;
+//const double M_PI = 3.14159265358979323846;
 
 // Helper function to compute GCD
 int gcd(int a, int b) {
@@ -220,10 +226,11 @@ vector<vector<double>> calculateSpectrum(int p, int q, double lambda) {
     return {Xper, Xanti};
 }
 
-EMSCRIPTEN_BINDINGS(butterfly) {
-    function("calculateSpectrum", &calculateSpectrum);
-    function("gcd", &gcd);
+// Explicitly qualify the EMSCRIPTEN_BINDINGS block
+EMSCRIPTEN_BINDINGS(butterfly_module) {
+    emscripten::function("calculateSpectrum", &calculateSpectrum);
+    emscripten::function("gcd", &gcd);
     
-    register_vector<double>("VectorDouble");
-    register_vector<vector<double>>("VectorVectorDouble");
+    emscripten::register_vector<double>("VectorDouble");
+    emscripten::register_vector<vector<double>>("VectorVectorDouble");
 }

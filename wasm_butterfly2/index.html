@@ -416,14 +416,15 @@
                 p.strokeWeight(1);
                 
                 for (let data of spectrumData) {
+                    data.eigenvalues.sort((a, b) => a - b);
                     let x = xOffset + data.theta * plotWidth;
                     
                     let numEigs = data.eigenvalues.length;
                     let hue = p.map(numEigs, 1, 20, 240, 0);
                     p.colorMode(p.HSB);
-                    p.stroke(hue, 80, 90, 150);
+                    p.stroke(hue, 80, 90, 100);
                     
-                    for (let i = 0; i < data.eigenvalues.length - 1; i++) {
+                    for (let i = 0; i < data.eigenvalues.length - 1; i+=2) {
                         let y1 = p.height/2 - data.eigenvalues[i] * yScale/2;
                         let y2 = p.height/2 - data.eigenvalues[i+1] * yScale/2;
                         
@@ -434,12 +435,12 @@
                     }
                     
                     p.stroke(hue, 100, 100, 200);
-                    for (let eig of data.eigenvalues) {
+                    /*for (let eig of data.eigenvalues) {
                         let y = p.height/2 - eig * yScale/2;
                         if (y >= yOffset && y <= p.height - yOffset) {
                             p.point(x, y);
                         }
-                    }
+                    }*/
                 }
                 
                 p.colorMode(p.RGB);

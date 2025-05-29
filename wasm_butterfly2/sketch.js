@@ -174,10 +174,10 @@ function drawAxes() {
     strokeWeight(1);
     
     // X-axis
-    line(xOffset, height - yOffset, width - xOffset, height - yOffset);
+    //line(xOffset, height - yOffset, width - xOffset, height - yOffset);
     
     // Y-axis
-    line(xOffset, yOffset, xOffset, height - yOffset);
+    //line(xOffset, yOffset, xOffset, height - yOffset);
     
     // X-axis labels
     fill(150);
@@ -211,6 +211,8 @@ function drawSpectrum() {
     strokeWeight(1);
     
     for (let data of spectrumData) {
+        //data.eigenvalues.sort((a, b) => a - b);  // Sort eigenvalues
+        if (data.eigenvalues.length === 0) continue;  // Skip empty data
         let x = xOffset + data.theta * plotWidth;
         
         // Use different colors for different density of eigenvalues
@@ -220,7 +222,7 @@ function drawSpectrum() {
         stroke(hue, 80, 90, 150);
         
         // Draw vertical line segments for each eigenvalue interval
-        for (let i = 0; i < data.eigenvalues.length - 1; i++) {
+        /*for (let i = 0; i < data.eigenvalues.length - 1; i+=2) {
             let y1 = height/2 - data.eigenvalues[i] * yScale/2;
             let y2 = height/2 - data.eigenvalues[i+1] * yScale/2;
             
@@ -229,8 +231,8 @@ function drawSpectrum() {
             y2 = constrain(y2, yOffset, height - yOffset);
             
             line(x, y1, x, y2);
-        }
-        
+        }*/
+        /*
         // Also draw individual eigenvalue points
         stroke(hue, 100, 100, 200);
         for (let eig of data.eigenvalues) {
@@ -238,7 +240,7 @@ function drawSpectrum() {
             if (y >= yOffset && y <= height - yOffset) {
                 point(x, y);
             }
-        }
+        }*/
     }
     
     colorMode(RGB);
