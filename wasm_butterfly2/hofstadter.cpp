@@ -139,6 +139,7 @@ vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
     return eigenvals;
 }*/
 
+/*
 // Simple eigenvalue computation
 vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matrix) {
     // Validate input matrix
@@ -200,6 +201,97 @@ vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matri
     }
     
     return result;
+}*/
+
+// Helper function for QR decomposition of tridiagonal matrix
+void qr_decomp(const vector<double>& diag, const vector<double>& subdiag,
+               vector<double>& new_diag, vector<double>& new_subdiag) {
+    const size_t n = diag.size();
+    if (n == 0) return;
+    
+    new_diag = diag;
+    new_subdiag = subdiag;
+    
+    for (size_t i = 0; i < n - 1; ++i) {
+        // Compute Givens rotation
+        double x = new_diag[i];
+        double y = new_subdiag[i];
+        double r = hypot(x, y);
+        double c = x / r;
+        double s = -y / r;
+        
+        // Apply Givens rotation to diagonal and subdiagonal
+        new_diag[i] = c * x - s * y;
+        double temp = c * new_subdiag[i] - s * new_diag[i+1];
+        new_diag[i+1] = s * new_subdiag[i] + c * new_diag[i+1];
+        new_subdiag[i] = temp;
+        
+        if (i < n - 2) {
+            new_subdiag[i+1] *= c;
+        }
+    }
+}
+
+// Computes eigenvalues of symmetric tridiagonal matrix
+vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matrix) {
+    // Validate input
+    const size_t n = matrix.size();
+    if (n == 0) return {};
+    
+    for (size_t i = 0; i < n; ++i) {
+        if (matrix[i].size() != n) {
+            throw invalid_argument("Matrix must be square");
+        }
+        
+        // Check symmetry and tridiagonal structure
+        for (size_t j = 0; j < n; ++j) {
+            if (abs(static_cast<int>(i) - static_cast<int>(j)) > 1 && matrix[i][j] != 0.0) {
+                throw invalid_argument("Matrix must be tridiagonal");
+            }
+            if (matrix[i][j] != matrix[j][i]) {
+                throw invalid_argument("Matrix must be symmetric");
+            }
+        }
+    }
+    
+    // Extract diagonals
+    vector<double> diag(n);
+    vector<double> subdiag(n-1);
+    
+    for (size_t i = 0; i < n; ++i) {
+        diag[i] = matrix[i][i];
+        if (i < n-1) {
+            subdiag[i] = matrix[i+1][i];
+        }
+    }
+    
+    // QR iteration with implicit shifts
+    const int max_iter = 100;
+    const double eps = 1e-10;
+    
+    for (int iter = 0; iter < max_iter; ++iter) {
+        // Check for convergence
+        bool converged = true;
+        for (size_t i = 0; i < n-1; ++i) {
+            if (abs(subdiag[i]) > eps * (abs(diag[i]) + abs(diag[i+1]))) {
+                converged = false;
+                break;
+            }
+        }
+        if (converged) break;
+        
+        // Perform QR step
+        vector<double> new_diag, new_subdiag;
+        qr_decomp(diag, subdiag, new_diag, new_subdiag);
+        
+        // Update matrix
+        diag = new_diag;
+        subdiag = new_subdiag;
+    }
+    
+    // The diagonal now contains eigenvalues
+    sort(diag.begin(), diag.end());
+    return diag;
 }
 
 
