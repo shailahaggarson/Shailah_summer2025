@@ -55,21 +55,36 @@
   <div id="status">Ready</div>
   <p>Energy spectrum of the almost Mathieu operator (C++ via WASM)</p>
 
+  <script src="butterfly.js"></script>
   
   <script>
     // Load WASM module
     const status = document.getElementById('status');
     status.textContent = "Loading WASM module...";
     
-    Module().then(module => {
-      window.ButterflyCalc = {
-        calculateSpectrum: module.calculateSpectrum,
-        gcd: module.gcd
-      };
-      status.textContent = "WASM module loaded. Click 'Draw Butterfly' to start.";
-    }).catch(err => {
-      status.textContent = "Error loading WASM: " + err;
-      console.error(err);
+    // Make sure Module is defined globally
+    window.Module = Module;
+    
+    Module.onRuntimeInitialized = function() {
+        window.ButterflyCalc = {
+            calculateSpectrum: Module.calculateSpectrum,
+            gcd: Module.gcd
+        };
+        status.textContent = "WASM module loaded. Click 'Draw Butterfly' to start.";
+        moduleLoaded = true; // Set this flag that's in your sketch.js
+    };
+
+    document.getElementById('drawBtn').addEventListener('click', function() {
+        const qMax = parseInt(document.getElementById('qMax').value);
+        const lambda = parseFloat(document.getElementById('lambda').value);
+        document.getElementById('qMaxValue').textContent = qMax;
+        document.getElementById('lambdaValue').textContent = lambda.toFixed(1);
+        status.textContent = "Drawing butterfly...";
+        drawButterfly(qMax, lambda);
+    });
+
+    document.getElementById('clearBtn').addEventListener('click', function() {
+        clearCanvas();
     });
   </script>
   <script src="sketch.js"></script>

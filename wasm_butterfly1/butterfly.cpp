@@ -14,9 +14,12 @@ using std::pow;
 //const double M_PI = 3.14159265358979323846;
 
 // Helper function to compute GCD
-int gcd(int a, int b) {
-    return b == 0 ? a : gcd(b, a % b);
-}
+
+    
+    int gcd(int a, int b) {
+        return b == 0 ? a : gcd(b, a % b);
+    }
+
 
 // Tridiagonal matrix creation helper
 vector<vector<double>> createTridiagonal(int n, const vector<double>& lower, 
@@ -184,47 +187,50 @@ vector<vector<vector<double>>> Hanti(int p, int q, double lambda) {
 }
 
 // Calculate spectrum for a given p/q
-vector<vector<double>> calculateSpectrum(int p, int q, double lambda) {
-    auto result_per = Hper(p, q, lambda);
-    auto H1per = result_per[0];
-    auto H2per = result_per[1];
-    
-    vector<double> Xper;
-    
-    auto eig1 = computeEigenvalues(H1per);
-    Xper.insert(Xper.end(), eig1.begin(), eig1.end());
-    
-    if (!H2per.empty()) {
-        auto eig2 = computeEigenvalues(H2per);
-        Xper.insert(Xper.end(), eig2.begin(), eig2.end());
-    }
-    
-    sort(Xper.begin(), Xper.end());
-    
-    vector<double> Xanti;
-    if (q % 2 == 0) {
-        auto result_anti = Hanti(p, q, lambda);
-        auto H1anti = result_anti[0];
-        auto H2anti = result_anti[1];
+
+    vector<vector<double>> calculateSpectrum(int p, int q, double lambda) {
+        auto result_per = Hper(p, q, lambda);
+        auto H1per = result_per[0];
+        auto H2per = result_per[1];
         
-        auto eig1 = computeEigenvalues(H1anti);
-        Xanti.insert(Xanti.end(), eig1.begin(), eig1.end());
+        vector<double> Xper;
         
-        if (!H2anti.empty()) {
-            auto eig2 = computeEigenvalues(H2anti);
-            Xanti.insert(Xanti.end(), eig2.begin(), eig2.end());
+        auto eig1 = computeEigenvalues(H1per);
+        Xper.insert(Xper.end(), eig1.begin(), eig1.end());
+        
+        if (!H2per.empty()) {
+            auto eig2 = computeEigenvalues(H2per);
+            Xper.insert(Xper.end(), eig2.begin(), eig2.end());
         }
         
-        sort(Xanti.begin(), Xanti.end());
-    } else {
-        Xanti.resize(Xper.size());
-        for (size_t i = 0; i < Xper.size(); i++) {
-            Xanti[i] = -Xper[Xper.size() - 1 - i];
+        sort(Xper.begin(), Xper.end());
+        
+        vector<double> Xanti;
+        if (q % 2 == 0) {
+            auto result_anti = Hanti(p, q, lambda);
+            auto H1anti = result_anti[0];
+            auto H2anti = result_anti[1];
+            
+            auto eig1 = computeEigenvalues(H1anti);
+            Xanti.insert(Xanti.end(), eig1.begin(), eig1.end());
+            
+            if (!H2anti.empty()) {
+                auto eig2 = computeEigenvalues(H2anti);
+                Xanti.insert(Xanti.end(), eig2.begin(), eig2.end());
+            }
+            
+            sort(Xanti.begin(), Xanti.end());
+        } else {
+            Xanti.resize(Xper.size());
+            for (size_t i = 0; i < Xper.size(); i++) {
+                Xanti[i] = -Xper[Xper.size() - 1 - i];
+            }
         }
+        
+        return {Xper, Xanti};
     }
-    
-    return {Xper, Xanti};
-}
+
+
 
 // Explicitly qualify the EMSCRIPTEN_BINDINGS block
 EMSCRIPTEN_BINDINGS(butterfly_module) {

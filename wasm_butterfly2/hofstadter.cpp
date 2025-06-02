@@ -5,7 +5,12 @@
 #include <numeric>
 #include <emscripten/emscripten.h>
 #include <emscripten/bind.h>
+#include <stdexcept>
+#include <cmath>  // For std::abs
+//#include "alglib-cpp/src/stdafx.h"
+#include "alglib-cpp/src/linalg.h"
 
+using namespace alglib;
 using namespace std;
 
 // Structure to hold matrix data
@@ -45,6 +50,7 @@ int gcd(int a, int b) {
     return a;
 }
 
+/*
 // Simple eigenvalue computation using QR algorithm (simplified version)
 vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
     int n = matrix.size();
@@ -131,7 +137,71 @@ vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
     
     sort(eigenvals.begin(), eigenvals.end());
     return eigenvals;
+}*/
+
+// Simple eigenvalue computation
+vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matrix) {
+    // Validate input matrix
+    if (matrix.empty()) return {};
+    
+    const size_t n = matrix.size();
+    
+    // Check if matrix is tridiagonal and symmetric
+    for (size_t i = 0; i < n; ++i) {
+        if (matrix[i].size() != n) {
+            throw invalid_argument("Input matrix must be square");
+        }
+        
+        // Check for non-zero elements outside the tridiagonal bands
+        for (size_t j = 0; j < n; ++j) {
+            if (std::abs(static_cast<int>(i) - static_cast<int>(j)) > 1 && matrix[i][j] != 0.0) {
+                throw invalid_argument("Input matrix must be tridiagonal");
+            }
+            
+            // Check symmetry
+            if (matrix[i][j] != matrix[j][i]) {
+                throw invalid_argument("Input matrix must be symmetric");
+            }
+        }
+    }
+    
+    // Extract main diagonal and sub/super diagonal
+    vector<double> d(n);  // Main diagonal
+    vector<double> e(n-1); // Sub-diagonal (also super-diagonal since symmetric)
+    
+    for (size_t i = 0; i < n; ++i) {
+        d[i] = matrix[i][i];
+        if (i < n-1) {
+            e[i] = matrix[i+1][i]; // Or matrix[i][i+1] since symmetric
+        }
+    }
+    
+    // Prepare ALGLIB data structures
+    real_1d_array alglib_d;
+    real_1d_array alglib_e;
+    alglib_d.setcontent(d.size(), d.data());
+    alglib_e.setcontent(e.size(), e.data());
+    
+    // Compute eigenvalues only (no eigenvectors)
+    real_1d_array eigenvalues;
+    bool isUpper = false; // We're using lower triangular part
+    
+    // Call ALGLIB's symmetric tridiagonal eigensolver
+    // Note: We need to pass an empty real_2d_array for eigenvectors even when we don't need them
+    real_2d_array dummy_z;
+    if (!smatrixtdevd(alglib_d, alglib_e, n, 0, dummy_z)) {
+        throw runtime_error("ALGLIB eigenvalue computation failed to converge");
+    }
+    
+    // Convert result to std::vector
+    vector<double> result(eigenvalues.length());
+    for (int i = 0; i < eigenvalues.length(); ++i) {
+        result[i] = eigenvalues[i];
+    }
+    
+    return result;
 }
+
 
 // HPER function - Periodic H matrix
 pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
@@ -142,7 +212,7 @@ pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
         return {eigs1, eigs2};
     } else if (q == 2) {
         vector<vector<double>> H1 = {{-lambda, 2.0}, {2.0, lambda}};
-        eigs1 = computeEigenvalues(H1);
+        eigs1 = computeTridiagonalEigenvalues(H1);
         return {eigs1, eigs2};
     } else if (q % 2 == 0) {
         // Even q case
@@ -164,7 +234,7 @@ pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
         }
         
         auto dense1 = H1.toDense();
-        eigs1 = computeEigenvalues(dense1);
+        eigs1 = computeTridiagonalEigenvalues(dense1);
         
         // H2 is submatrix
         if (q2 > 1) {
@@ -174,7 +244,7 @@ pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
                     H2_dense[i][j] = dense1[i + 1][j + 1];
                 }
             }
-            eigs2 = computeEigenvalues(H2_dense);
+            eigs2 = computeTridiagonalEigenvalues(H2_dense);
         }
     } else {
         // Odd q case
@@ -197,7 +267,7 @@ pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
         
         auto dense1 = H1.toDense();
         dense1[q2-1][q2-1] += 1.0;  // H1(q2,q2) = H1(q2,q2) + 1
-        eigs1 = computeEigenvalues(dense1);
+        eigs1 = computeTridiagonalEigenvalues(dense1);
         
         // H2 is submatrix with modification
         if (q2 > 1) {
@@ -208,7 +278,7 @@ pair<vector<double>, vector<double>> Hper(int p, int q, double lambda) {
                 }
             }
             H2_dense[q2-2][q2-2] -= 1.0;  // H2(q2-1,q2-1) = H2(q2-1,q2-1) - 1
-            eigs2 = computeEigenvalues(H2_dense);
+            eigs2 = computeTridiagonalEigenvalues(H2_dense);
         }
     }
     
@@ -256,8 +326,8 @@ pair<vector<double>, vector<double>> Hanti(int p, int q, double lambda) {
         dense2[0][0] -= 1.0;
         dense2[q2-1][q2-1] += 1.0;
         
-        eigs1 = computeEigenvalues(dense1);
-        eigs2 = computeEigenvalues(dense2);
+        eigs1 = computeTridiagonalEigenvalues(dense1);
+        eigs2 = computeTridiagonalEigenvalues(dense2);
     } else {
         // Odd q case - similar to Hper but with sign changes
         int q2 = (q + 1) / 2;
@@ -277,7 +347,7 @@ pair<vector<double>, vector<double>> Hanti(int p, int q, double lambda) {
         
         auto dense1 = H1.toDense();
         dense1[q2-1][q2-1] -= 1.0;
-        eigs1 = computeEigenvalues(dense1);
+        eigs1 = computeTridiagonalEigenvalues(dense1);
         
         if (q2 > 1) {
             vector<vector<double>> H2_dense(q2 - 1, vector<double>(q2 - 1));
@@ -287,7 +357,7 @@ pair<vector<double>, vector<double>> Hanti(int p, int q, double lambda) {
                 }
             }
             H2_dense[q2-2][q2-2] += 1.0;
-            eigs2 = computeEigenvalues(H2_dense);
+            eigs2 = computeTridiagonalEigenvalues(H2_dense);
         }
     }
     
