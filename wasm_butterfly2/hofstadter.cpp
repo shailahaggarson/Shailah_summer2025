@@ -50,9 +50,9 @@ int gcd(int a, int b) {
     return a;
 }
 
-/*
+
 // Simple eigenvalue computation using QR algorithm (simplified version)
-vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
+vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matrix) {
     int n = matrix.size();
     if (n == 0) return {};
     
@@ -137,7 +137,7 @@ vector<double> computeEigenvalues(const vector<vector<double>>& matrix) {
     
     sort(eigenvals.begin(), eigenvals.end());
     return eigenvals;
-}*/
+}
 
 /*
 // Simple eigenvalue computation
@@ -190,7 +190,7 @@ vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matri
     // Call ALGLIB's symmetric tridiagonal eigensolver
     // Note: We need to pass an empty real_2d_array for eigenvectors even when we don't need them
     real_2d_array dummy_z;
-    if (!smatrixtdevd(alglib_d, alglib_e, n, 0, dummy_z)) {
+    if (!alglib::smatrixtdevd(alglib_d, alglib_e, n, 0, dummy_z)) {
         throw runtime_error("ALGLIB eigenvalue computation failed to converge");
     }
     
@@ -203,6 +203,7 @@ vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matri
     return result;
 }*/
 
+/*
 // Helper function for QR decomposition of tridiagonal matrix
 void qr_decomp(const vector<double>& diag, const vector<double>& subdiag,
                vector<double>& new_diag, vector<double>& new_subdiag) {
@@ -292,7 +293,7 @@ vector<double> computeTridiagonalEigenvalues(const vector<vector<double>>& matri
     // The diagonal now contains eigenvalues
     sort(diag.begin(), diag.end());
     return diag;
-}
+}*/
 
 
 // HPER function - Periodic H matrix
